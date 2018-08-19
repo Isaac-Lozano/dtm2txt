@@ -2,7 +2,7 @@ use std::io::Read;
 
 use byteorder::{ReadBytesExt, LE};
 use dtm::{Dtm, DtmHeader, ControllerInput, AudioEmulator, Md5, Reserved2, GitRevision, Reserved3};
-use error::Dtm2txtResult;
+use error::{Dtm2txtError, Dtm2txtResult};
 
 const DTM_MAGIC: &[u8; 4] = b"DTM\x1A";
 
@@ -73,7 +73,7 @@ impl<R> DtmDecoder<R>
         let mut magic_buffer = [0; 4];
         self.inner.read_exact(&mut magic_buffer)?;
         if magic_buffer != *DTM_MAGIC {
-            panic!("Bad magic value");
+            return Err(Dtm2txtError::BadMagicError);
         }
 
         let game_id = self.inner.read_string(6)?;

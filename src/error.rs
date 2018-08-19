@@ -30,10 +30,15 @@ pub enum Dtm2txtError {
     IoError(IoError),
     FromUtf8Error(FromUtf8Error),
     JsonError(JsonError),
+    StringTooLongError {
+        found: usize,
+        max: usize,
+    },
+    BadMagicError,
     ControllerInputParseError{
         reason: ControllerInputParseError,
         line: u64,
-    }
+    },
 }
 
 impl fmt::Display for Dtm2txtError {
@@ -42,6 +47,9 @@ impl fmt::Display for Dtm2txtError {
             Dtm2txtError::IoError(ref e) => e.fmt(f),
             Dtm2txtError::FromUtf8Error(ref e) => e.fmt(f),
             Dtm2txtError::JsonError(ref e) => e.fmt(f),
+            Dtm2txtError::StringTooLongError{found, max} =>
+                write!(f, "string too long (found {}, max {})", found, max),
+            Dtm2txtError::BadMagicError => f.write_str("bad magic"),
             Dtm2txtError::ControllerInputParseError{ref reason, line} =>
                 write!(f, "{} on line {}", reason, line),
         }
@@ -54,6 +62,8 @@ impl Error for Dtm2txtError {
             Dtm2txtError::IoError(ref e) => Some(e),
             Dtm2txtError::FromUtf8Error(ref e) => Some(e),
             Dtm2txtError::JsonError(ref e) => Some(e),
+            Dtm2txtError::StringTooLongError{..} => None,
+            Dtm2txtError::BadMagicError => None,
             Dtm2txtError::ControllerInputParseError{..} => None,
         }
     }

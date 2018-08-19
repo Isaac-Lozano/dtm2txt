@@ -3,7 +3,7 @@ use std::io::Write;
 use byteorder::{WriteBytesExt, LE};
 
 use dtm::{Dtm, DtmHeader, ControllerInput};
-use error::Dtm2txtResult;
+use error::{Dtm2txtError, Dtm2txtResult};
 
 const DTM_MAGIC: &[u8; 4] = b"DTM\x1A";
 
@@ -11,7 +11,10 @@ trait WriteDtmExt: Write {
     fn write_str(&mut self, val: &str, len: usize) -> Dtm2txtResult<()> {
         let bytes = val.as_bytes();
         if bytes.len() > len {
-            panic!("String too long.");
+            return Err(Dtm2txtError::StringTooLongError {
+                found: val.len(),
+                max: len,
+            });
         }
 
         let mut buffer = vec![0; len];
