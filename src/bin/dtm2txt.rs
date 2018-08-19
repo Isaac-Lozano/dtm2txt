@@ -65,6 +65,8 @@ fn main() {
 
             let encoder = TextEncoder::new(output_file);
             encoder.encode(&dtm_bin).unwrap_or_barf("Could not encode dtm");
+
+            println!("Successfully converted from dtm to txt.")
         }
         "txt" => {
             let decoder = TextDecoder::new(file);
@@ -75,6 +77,7 @@ fn main() {
 
             let encoder = DtmEncoder::new(output_file);
             encoder.encode(&dtm_txt).unwrap_or_barf("Could not encode dtm");
+            println!("Successfully converted from txt to dtm.")
         }
         _ => barf("File must be a txt or a dtm."),
     }
