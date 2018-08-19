@@ -63,6 +63,7 @@ impl<W> TextEncoder<W>
         format_input!(line, input.reset, " RST", "");
         format_input!(line, input.controller_connected, " CC", "");
         format_input!(line, input.reserved, " RSV", "");
+        line += "\n";
 
         Ok(self.inner.write_all(line.as_bytes())?)
     }

@@ -45,7 +45,8 @@ impl<R> LineCountRead<R>
     fn new(inner: R) -> LineCountRead<R> {
         LineCountRead {
             inner: inner,
-            lines: 0,
+            // 1-indexed line numbers.
+            lines: 1,
         }
     }
 
@@ -204,9 +205,10 @@ impl<R> TextDecoder<R>
             Deserialize::deserialize(&mut de)?
         };
 
-        self.input_reader.line += self.inner.lines_read();
+        // Add one to account for the fact that reading stops after last bracket.
+        self.input_reader.line += self.inner.lines_read() + 1;
 
-        let line_reader = BufReader::new(self.inner);
+        let line_reader = BufReader::new(self.inner.inner);
         let mut controller_data = Vec::new();
         for line in line_reader.lines().skip(1) {
             controller_data.push(self.input_reader.read_controller_input(line)?);
