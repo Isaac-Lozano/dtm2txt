@@ -4,7 +4,7 @@ use serde::Deserialize;
 use serde_json;
 use serde_json::de::IoRead as JsonIoRead;
 
-use dtm::{Dtm, ControllerInput};
+use dtm::{Dtm, DtmHeader, ControllerInput};
 use error::{Dtm2txtError, ControllerInputParseError, Dtm2txtResult};
 
 macro_rules! get_token {
@@ -199,7 +199,7 @@ impl<R> TextDecoder<R>
     pub fn decode(mut self) -> Dtm2txtResult<Dtm>
         where R: Read,
     {
-        let header = {
+        let mut header: DtmHeader = {
             let mut de = serde_json::Deserializer::new(JsonIoRead::new(&mut self.inner));
             Deserialize::deserialize(&mut de)?
         };
@@ -211,6 +211,8 @@ impl<R> TextDecoder<R>
         for line in line_reader.lines().skip(1) {
             controller_data.push(self.input_reader.read_controller_input(line)?);
         }
+
+        header.input_count = controller_data.len() as u64;
 
         Ok(Dtm {
             header: header,
