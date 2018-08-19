@@ -5,7 +5,10 @@ use std::fs::File;
 use std::io::{BufReader, BufWriter};
 use std::path::{PathBuf};
 
-use dtm2txt::dtm::Dtm;
+use dtm2txt::encoder::text_encoder::TextEncoder;
+use dtm2txt::encoder::dtm_encoder::DtmEncoder;
+use dtm2txt::decoder::text_decoder::TextDecoder;
+use dtm2txt::decoder::dtm_decoder::DtmDecoder;
 
 fn main() {
     let mut args = env::args().skip(1);
@@ -16,16 +19,24 @@ fn main() {
 
     match filename.extension().unwrap().to_str().unwrap() {
         "dtm" => {
+            let decoder = DtmDecoder::new(file);
+            let dtm_bin = decoder.decode().unwrap();
+
             let output_filename = filename.with_extension("txt");
-            let dtm_bin = Dtm::read(file).unwrap();
             let output_file = BufWriter::new(File::create(output_filename).unwrap());
-            dtm_bin.write(output_file).unwrap();
+
+            let encoder = TextEncoder::new(output_file);
+            encoder.encode(&dtm_bin).unwrap();
         }
         "txt" => {
+            let decoder = TextDecoder::new(file);
+            let dtm_txt = decoder.decode().unwrap();
+
             let output_filename = filename.with_extension("dtm");
-            let dtm_txt = Dtm::read_from_text(file).unwrap();
             let output_file = BufWriter::new(File::create(output_filename).unwrap());
-            dtm_txt.write_to_dtm(output_file).unwrap();
+
+            let encoder = DtmEncoder::new(output_file);
+            encoder.encode(&dtm_txt).unwrap();
         }
         _ => panic!("File must be a txt or a dtm."),
     }
