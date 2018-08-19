@@ -1,6 +1,6 @@
 [package]
 name = "dtm2txt"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Isaac Lozano <109lozanoi@gmail.com>"]
 
 [dependencies]
