@@ -2,8 +2,28 @@ use std::error::Error;
 use std::fmt;
 use std::io::Error as IoError;
 use std::string::FromUtf8Error;
+use std::num::ParseIntError;
 
 use serde_json::error::Error as JsonError;
+
+#[derive(Debug)]
+pub enum ControllerInputParseError {
+    ParseIntError(ParseIntError),
+    IoError(IoError),
+    MissingTokenError,
+    InvalidButtonError,
+}
+
+impl fmt::Display for ControllerInputParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match *self {
+            ControllerInputParseError::ParseIntError(ref e) => e.fmt(f),
+            ControllerInputParseError::IoError(ref e) => e.fmt(f),
+            ControllerInputParseError::MissingTokenError => f.write_str("missing a button or axis"),
+            ControllerInputParseError::InvalidButtonError => f.write_str("invalid button value"),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub enum Dtm2txtError {
@@ -11,18 +31,19 @@ pub enum Dtm2txtError {
     FromUtf8Error(FromUtf8Error),
     JsonError(JsonError),
     ControllerInputParseError{
+        reason: ControllerInputParseError,
         line: u64,
-        reason: &'static str,
     }
 }
 
 impl fmt::Display for Dtm2txtError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match *self {
-            Dtm2txtError::IoError(_) => f.write_str("io error"),
-            Dtm2txtError::FromUtf8Error(_) => f.write_str("utf8 error"),
-            Dtm2txtError::JsonError(_) => f.write_str("json error"),
-            Dtm2txtError::ControllerInputParseError{..} => f.write_str("controller input parse error"),
+            Dtm2txtError::IoError(ref e) => e.fmt(f),
+            Dtm2txtError::FromUtf8Error(ref e) => e.fmt(f),
+            Dtm2txtError::JsonError(ref e) => e.fmt(f),
+            Dtm2txtError::ControllerInputParseError{ref reason, line} =>
+                write!(f, "{} on line {}", reason, line),
         }
     }
 }

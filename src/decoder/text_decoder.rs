@@ -1,21 +1,33 @@
-use std::io::{self, Read, BufRead, BufReader};
+use std::io::{self, Read, BufRead, BufReader, Error as IoError};
 
 use serde::Deserialize;
 use serde_json;
 use serde_json::de::IoRead as JsonIoRead;
 
 use dtm::{Dtm, ControllerInput};
-use error::{Dtm2txtError, Dtm2txtResult};
+use error::{Dtm2txtError, ControllerInputParseError, Dtm2txtResult};
+
+macro_rules! get_token {
+    ($option:expr, $line:expr) => {
+        match $option {
+            Some(value) => value,
+            None => return Err(Dtm2txtError::ControllerInputParseError {
+                line: $line,
+                reason: ControllerInputParseError::MissingTokenError,
+            }),
+        }
+    };
+}
 
 macro_rules! read_input {
     ($line:expr, $token:expr, $upper:expr, $lower:expr) => {
         {
-            match $token {
+            match get_token!($token, $line) {
                 $upper => true,
                 $lower => false,
                 _ => return Err(Dtm2txtError::ControllerInputParseError {
                     line: $line,
-                    reason: "incorrect button value",
+                    reason: ControllerInputParseError::InvalidButtonError,
                 }),
             }
         }
@@ -67,27 +79,62 @@ impl InputReader {
         }
     }
 
-    fn read_controller_input(&mut self, line: &str) -> Dtm2txtResult<ControllerInput> {
+    fn read_controller_input(&mut self, line_result: Result<String, IoError>) -> Dtm2txtResult<ControllerInput> {
+        let line = line_result
+            .map_err(|err| Dtm2txtError::ControllerInputParseError {
+                reason: ControllerInputParseError::IoError(err),
+                line: self.line,
+            })?;
         let mut tokens = line.split_whitespace();
         // TODO: More error checks.
-        let start = read_input!(self.line, tokens.next().unwrap(), "S", "s");
-        let a = read_input!(self.line, tokens.next().unwrap(), "A", "a");
-        let b = read_input!(self.line, tokens.next().unwrap(), "B", "b");
-        let x = read_input!(self.line, tokens.next().unwrap(), "X", "x");
-        let y = read_input!(self.line, tokens.next().unwrap(), "Y", "y");
-        let z = read_input!(self.line, tokens.next().unwrap(), "Z", "z");
-        let up = read_input!(self.line, tokens.next().unwrap(), "U", "u");
-        let down = read_input!(self.line, tokens.next().unwrap(), "D", "d");
-        let left = read_input!(self.line, tokens.next().unwrap(), "L", "l");
-        let right = read_input!(self.line, tokens.next().unwrap(), "R", "r");
-        let l = read_input!(self.line, tokens.next().unwrap(), "LT", "lt");
-        let r = read_input!(self.line, tokens.next().unwrap(), "RT", "rt");
-        let l_pressure = tokens.next().unwrap().parse::<u8>().unwrap();
-        let r_pressure = tokens.next().unwrap().parse::<u8>().unwrap();
-        let analog_x = tokens.next().unwrap().parse::<u8>().unwrap();
-        let analog_y = tokens.next().unwrap().parse::<u8>().unwrap();
-        let c_x = tokens.next().unwrap().parse::<u8>().unwrap();
-        let c_y = tokens.next().unwrap().parse::<u8>().unwrap();
+        let start = read_input!(self.line, tokens.next(), "S", "s");
+        let a = read_input!(self.line, tokens.next(), "A", "a");
+        let b = read_input!(self.line, tokens.next(), "B", "b");
+        let x = read_input!(self.line, tokens.next(), "X", "x");
+        let y = read_input!(self.line, tokens.next(), "Y", "y");
+        let z = read_input!(self.line, tokens.next(), "Z", "z");
+        let up = read_input!(self.line, tokens.next(), "U", "u");
+        let down = read_input!(self.line, tokens.next(), "D", "d");
+        let left = read_input!(self.line, tokens.next(), "L", "l");
+        let right = read_input!(self.line, tokens.next(), "R", "r");
+        let l = read_input!(self.line, tokens.next(), "LT", "lt");
+        let r = read_input!(self.line, tokens.next(), "RT", "rt");
+        let l_pressure = get_token!(tokens.next(), self.line)
+            .parse::<u8>()
+            .map_err(|err| Dtm2txtError::ControllerInputParseError {
+                reason: ControllerInputParseError::ParseIntError(err),
+                line: self.line,
+            })?;
+        let r_pressure = get_token!(tokens.next(), self.line)
+            .parse::<u8>()
+            .map_err(|err| Dtm2txtError::ControllerInputParseError {
+                reason: ControllerInputParseError::ParseIntError(err),
+                line: self.line,
+            })?;
+        let analog_x = get_token!(tokens.next(), self.line)
+            .parse::<u8>()
+            .map_err(|err| Dtm2txtError::ControllerInputParseError {
+                reason: ControllerInputParseError::ParseIntError(err),
+                line: self.line,
+            })?;
+        let analog_y = get_token!(tokens.next(), self.line)
+            .parse::<u8>()
+            .map_err(|err| Dtm2txtError::ControllerInputParseError {
+                reason: ControllerInputParseError::ParseIntError(err),
+                line: self.line,
+            })?;
+        let c_x = get_token!(tokens.next(), self.line)
+            .parse::<u8>()
+            .map_err(|err| Dtm2txtError::ControllerInputParseError {
+                reason: ControllerInputParseError::ParseIntError(err),
+                line: self.line,
+            })?;
+        let c_y = get_token!(tokens.next(), self.line)
+            .parse::<u8>()
+            .map_err(|err| Dtm2txtError::ControllerInputParseError {
+                reason: ControllerInputParseError::ParseIntError(err),
+                line: self.line,
+            })?;
 
         let mut change_disc = false;
         let mut reset = false;
@@ -99,9 +146,14 @@ impl InputReader {
                 "RST" => reset = true,
                 "CC" => controller_connected = true,
                 "RSV" => reserved = true,
-                _ => panic!("Too lazy to write an error function here."),
+                _ => return Err(Dtm2txtError::ControllerInputParseError {
+                    reason: ControllerInputParseError::InvalidButtonError,
+                    line: self.line,
+                }),
             }
         }
+
+        self.line += 1;
 
         Ok(ControllerInput {
             start: start,
@@ -158,7 +210,7 @@ impl<R> TextDecoder<R>
         let line_reader = BufReader::new(self.inner);
         let mut controller_data = Vec::new();
         for line in line_reader.lines().skip(1) {
-            controller_data.push(self.input_reader.read_controller_input(&line.unwrap())?);
+            controller_data.push(self.input_reader.read_controller_input(line)?);
         }
 
         Ok(Dtm {
