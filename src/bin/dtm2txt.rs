@@ -12,7 +12,14 @@ use dtm2txt::decoder::dtm_decoder::DtmDecoder;
 
 fn main() {
     let mut args = env::args().skip(1);
-    let filename_string = args.next().unwrap();
+    let filename_string = match args.next() {
+        Some(value) => value,
+        None => {
+            println!("dtm2txt (version {})", env!("CARGO_PKG_VERSION"));
+            println!("by OnVar");
+            return;
+        }
+    };
 
     let filename: PathBuf = filename_string.into();
     let file = BufReader::new(File::open(&filename).unwrap());
