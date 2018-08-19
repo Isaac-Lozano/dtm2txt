@@ -86,7 +86,6 @@ impl InputReader {
                 line: self.line,
             })?;
         let mut tokens = line.split_whitespace();
-        // TODO: More error checks.
         let start = read_input!(self.line, tokens.next(), "S", "s");
         let a = read_input!(self.line, tokens.next(), "A", "a");
         let b = read_input!(self.line, tokens.next(), "B", "b");
