@@ -35,7 +35,7 @@ macro_rules! bytestring {
             type Value = $name;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-                write!(formatter, "a {}-byte long all-caps hex string", $length)
+                formatter.write_str(concat!("a ", $length, "-byte long all-caps hex string"))
             }
 
             fn visit_str<E>(self, value: &str) ->  Result<Self::Value, E>
