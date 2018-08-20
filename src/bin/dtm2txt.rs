@@ -53,6 +53,7 @@ fn main() {
     };
 
     let filename: PathBuf = filename_string.into();
+    let output_opt = args.next();
     let file = BufReader::new(File::open(&filename).unwrap_or_barf("Could not file"));
 
     match filename.extension().unwrap_or_barf("Filename has no extension").to_str().unwrap_or_barf("Error processing filename") {
@@ -60,7 +61,9 @@ fn main() {
             let decoder = DtmDecoder::new(file);
             let dtm_bin = decoder.decode().unwrap_or_barf("Could not make dtm decoder");
 
-            let output_filename = filename.with_extension("txt");
+            let output_filename = output_opt
+                .map(|val| val.into())
+                .unwrap_or(filename.with_extension("txt"));
             let output_file = BufWriter::new(File::create(output_filename).unwrap_or_barf("Could not create file"));
 
             let encoder = TextEncoder::new(output_file);
@@ -72,7 +75,9 @@ fn main() {
             let decoder = TextDecoder::new(file);
             let dtm_txt = decoder.decode().unwrap_or_barf("Could not make text decoder");
 
-            let output_filename = filename.with_extension("dtm");
+            let output_filename = output_opt
+                .map(|val| val.into())
+                .unwrap_or(filename.with_extension("dtm"));
             let output_file = BufWriter::new(File::create(output_filename).unwrap_or_barf("Could not create file"));
 
             let encoder = DtmEncoder::new(output_file);
