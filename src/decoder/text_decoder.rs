@@ -7,33 +7,6 @@ use serde_json::de::IoRead as JsonIoRead;
 use dtm::{Dtm, DtmHeader, ControllerInput};
 use error::{Dtm2txtError, ControllerInputParseError, Dtm2txtResult};
 
-macro_rules! get_token {
-    ($option:expr, $line:expr) => {
-        match $option {
-            Some(value) => value,
-            None => return Err(Dtm2txtError::ControllerInputParseError {
-                line: $line,
-                reason: ControllerInputParseError::MissingTokenError,
-            }),
-        }
-    };
-}
-
-macro_rules! read_input {
-    ($line:expr, $token:expr, $upper:expr, $lower:expr) => {
-        {
-            match get_token!($token, $line) {
-                $upper => true,
-                $lower => false,
-                _ => return Err(Dtm2txtError::ControllerInputParseError {
-                    line: $line,
-                    reason: ControllerInputParseError::InvalidButtonError,
-                }),
-            }
-        }
-    };
-}
-
 struct LineCountRead<R> {
     inner: R,
     lines: u64,
@@ -80,6 +53,42 @@ impl InputReader {
         }
     }
 
+    fn get_token<'a>(&self, token_opt: Option<&'a str>) -> Dtm2txtResult<&'a str> {
+        match token_opt {
+            Some(token) => Ok(token),
+            None => Err(Dtm2txtError::ControllerInputParseError {
+                reason: ControllerInputParseError::MissingTokenError,
+                line: self.line,
+            })
+        }
+    }
+
+    fn read_button(&self, token_opt: Option<&str>, upper: &'static str, lower: &'static str) -> Dtm2txtResult<bool> {
+        let token = self.get_token(token_opt)?;
+
+        if token == upper {
+            Ok(true)
+        }
+        else if token == lower {
+            Ok(false)
+        }
+        else {
+            Err(Dtm2txtError::ControllerInputParseError {
+                reason: ControllerInputParseError::InvalidButtonError,
+                line: self.line,
+            })
+        }
+    }
+
+    fn read_axis(&self, token_opt: Option<&str>) -> Dtm2txtResult<u8> {
+        self.get_token(token_opt)?
+            .parse::<u8>()
+            .map_err(|err| Dtm2txtError::ControllerInputParseError {
+                reason: ControllerInputParseError::ParseIntError(err),
+                line: self.line,
+            })
+    }
+
     fn read_controller_input(&mut self, line_result: Result<String, IoError>) -> Dtm2txtResult<ControllerInput> {
         let line = line_result
             .map_err(|err| Dtm2txtError::ControllerInputParseError {
@@ -87,54 +96,24 @@ impl InputReader {
                 line: self.line,
             })?;
         let mut tokens = line.split_whitespace();
-        let start = read_input!(self.line, tokens.next(), "S", "s");
-        let a = read_input!(self.line, tokens.next(), "A", "a");
-        let b = read_input!(self.line, tokens.next(), "B", "b");
-        let x = read_input!(self.line, tokens.next(), "X", "x");
-        let y = read_input!(self.line, tokens.next(), "Y", "y");
-        let z = read_input!(self.line, tokens.next(), "Z", "z");
-        let up = read_input!(self.line, tokens.next(), "U", "u");
-        let down = read_input!(self.line, tokens.next(), "D", "d");
-        let left = read_input!(self.line, tokens.next(), "L", "l");
-        let right = read_input!(self.line, tokens.next(), "R", "r");
-        let l = read_input!(self.line, tokens.next(), "LT", "lt");
-        let r = read_input!(self.line, tokens.next(), "RT", "rt");
-        let l_pressure = get_token!(tokens.next(), self.line)
-            .parse::<u8>()
-            .map_err(|err| Dtm2txtError::ControllerInputParseError {
-                reason: ControllerInputParseError::ParseIntError(err),
-                line: self.line,
-            })?;
-        let r_pressure = get_token!(tokens.next(), self.line)
-            .parse::<u8>()
-            .map_err(|err| Dtm2txtError::ControllerInputParseError {
-                reason: ControllerInputParseError::ParseIntError(err),
-                line: self.line,
-            })?;
-        let analog_x = get_token!(tokens.next(), self.line)
-            .parse::<u8>()
-            .map_err(|err| Dtm2txtError::ControllerInputParseError {
-                reason: ControllerInputParseError::ParseIntError(err),
-                line: self.line,
-            })?;
-        let analog_y = get_token!(tokens.next(), self.line)
-            .parse::<u8>()
-            .map_err(|err| Dtm2txtError::ControllerInputParseError {
-                reason: ControllerInputParseError::ParseIntError(err),
-                line: self.line,
-            })?;
-        let c_x = get_token!(tokens.next(), self.line)
-            .parse::<u8>()
-            .map_err(|err| Dtm2txtError::ControllerInputParseError {
-                reason: ControllerInputParseError::ParseIntError(err),
-                line: self.line,
-            })?;
-        let c_y = get_token!(tokens.next(), self.line)
-            .parse::<u8>()
-            .map_err(|err| Dtm2txtError::ControllerInputParseError {
-                reason: ControllerInputParseError::ParseIntError(err),
-                line: self.line,
-            })?;
+        let start = self.read_button(tokens.next(), "S", "s")?;
+        let a = self.read_button(tokens.next(), "A", "a")?;
+        let b = self.read_button(tokens.next(), "B", "b")?;
+        let x = self.read_button(tokens.next(), "X", "x")?;
+        let y = self.read_button(tokens.next(), "Y", "y")?;
+        let z = self.read_button(tokens.next(), "Z", "z")?;
+        let up = self.read_button(tokens.next(), "U", "u")?;
+        let down = self.read_button(tokens.next(), "D", "d")?;
+        let left = self.read_button(tokens.next(), "L", "l")?;
+        let right = self.read_button(tokens.next(), "R", "r")?;
+        let l = self.read_button(tokens.next(), "LT", "lt")?;
+        let r = self.read_button(tokens.next(), "RT", "rt")?;
+        let l_pressure = self.read_axis(tokens.next())?;
+        let r_pressure = self.read_axis(tokens.next())?;
+        let analog_x = self.read_axis(tokens.next())?;
+        let analog_y = self.read_axis(tokens.next())?;
+        let c_x = self.read_axis(tokens.next())?;
+        let c_y = self.read_axis(tokens.next())?;
 
         let mut change_disc = false;
         let mut reset = false;
